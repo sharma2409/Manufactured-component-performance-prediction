@@ -1,0 +1,72 @@
+---
+title: "Regression Models-iiA_2"
+author: "Raghav Sharma"
+date: "4/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r, load_packages}
+library(tidyverse)
+library(reshape2)
+library(matrixStats)
+```
+
+```{r, read-in}
+
+data_url <- 'https://raw.githubusercontent.com/jyurko/INFSCI_2595_Spring_2021/main/HW/final_project/infsci_2595_s21_final_project_data.csv'
+
+df <- readr::read_csv(data_url, col_names = TRUE)
+```
+
+```{r}
+df_step_1 <- df %>% select(xA, xB, x01:x06, response_1)
+```
+
+
+```{r}
+df_scaled <- df_step_1
+df_scaled[3:9] <- scale(df_step_1[3:9])
+
+df_scaled %>% glimpse()
+
+```
+
+
+```{r, linear_response_1}
+mod_01 <- lm(response_1 ~ xA + xB, data = df_scaled) #Discrete inputs as additive terms for response_1
+mod_02 <- lm(response_1 ~ x01 + x02 + x03 + x04 + x05 + x06, data = df_scaled) # All Continuous inputs as additive terms for response_1
+mod_03 <- lm(response_1 ~ xA + xB + x01 + x02 + x03 + x04 + x05 + x06, data = df_scaled) # Step 1 Continuous inputs as additive terms for response_1
+mod_04 <- lm(response_1 ~ splines::ns(x01 + x02 + x03 + x04 + x05 + x06, df = 5), data = df_scaled)
+```
+
+```{r, performance_r-squared}
+#Calculate RMSE values
+RMSE_results <- list(modelr::rmse(mod_01, df_scaled),modelr::rmse(mod_02, df_scaled),modelr::rmse(mod_03, df_scaled),modelr::rmse(mod_04, df_scaled))
+names(RMSE_results) <- c('mod_01','mod_02','mod_03','mod_04')
+
+RMSE_results
+```
+
+On the basis of the RMSE, the model with all inputs (both continuous and discrete) is the best, followed by the model which has all continuous inputs as additive terms.
+
+```{r}
+coefplot::coefplot(mod_03)
+```
+
+
+```{r}
+coefplot::coefplot(mod_01)
+```
+In mod_01 except xBB2 all coefficients are statistically significant.
+
+In mod_03 except x03,x04,x05 and x06 all coefficients are statistically significant.
