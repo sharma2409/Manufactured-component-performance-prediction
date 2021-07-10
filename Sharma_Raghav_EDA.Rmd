@@ -1,0 +1,286 @@
+---
+title: "EDA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, load_packages}
+library(tidyverse)
+library(reshape2)
+library(matrixStats)
+library(GGally)
+```
+
+```{r, read-in}
+
+data_url <- 'https://raw.githubusercontent.com/jyurko/INFSCI_2595_Spring_2021/main/HW/final_project/infsci_2595_s21_final_project_data.csv'
+
+df <- readr::read_csv(data_url, col_names = TRUE)
+```
+
+```{r, glimpse}
+df %>% glimpse()
+```
+
+Check for missing values in the data-set
+
+```{r}
+visdat::vis_miss(df)
+```
+There are no missing values in the data-set
+
+Visualizing the type of data in the data-set
+
+```{r, data_types}
+
+visdat::vis_dat(df)
+
+```
+xA, xB and outcome_2 are character type data. While all the other fields are numeric. 
+
+No. of unique values in the  variables in the data
+
+```{r, Unique_vals}
+
+df %>% purrr::map_dbl(~length(unique(.)))
+
+```
+
+Looking at the first few values of the data-set
+
+```{r, df_head}
+
+head(df)
+
+```
+
+Separating variables associated with Option A classification formulation.
+
+```{r}
+df_A <- df %>% select(xA, xB, x01:x11, outcome_2) %>%
+  mutate(outcome_2 = factor(outcome_2, levels = c("Fail", "Pass")))
+
+df_A %>% glimpse()
+```
+
+
+
+Count of different values under xA:
+
+```{r}
+#Bar plots for xA
+df %>% ggplot(mapping = aes(x = xA))+
+  geom_bar(width = 0.5)+
+  geom_text(stat = 'count', aes(label = ..count..), vjust = 0)
+```
+
+Count of different values under xB:
+
+```{r}
+#Bar plots for xA
+df %>% ggplot(mapping = aes(x = xB))+
+  geom_bar(width = 0.5)+
+  geom_text(stat = 'count', aes(label = ..count..), vjust = 0)
+```
+
+
+
+
+```{r, univariate analysis}
+summary(df)
+```
+
+```{r, range}
+#Finding the range for convenience
+
+conti_var <- df %>%   #Data-set with all continuous inputs
+  select(x01:x11, response_1)
+
+for (i in 1:ncol(conti_var)){
+  print(paste0(colnames(conti_var[i]), " : ", max(conti_var[,i])-min(conti_var[,i]) ))
+}
+```
+
+
+```{r, analyzing continuous variables, histogram}
+
+conti_var %>% 
+  tibble::rowid_to_column() %>% 
+  pivot_longer(!rowid) %>%
+  ggplot(mapping = aes(x = value))+
+  geom_histogram(bins = 35)+
+  facet_wrap(~name, scales = "free")
+```
+
+The continuous variables are predominantly Gaussian, hence there is no need to apply transformations. 
+
+
+```{r, box-plots}
+df_A %>% 
+  ggplot(mapping = aes(y = x01))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+```
+
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x02))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x03))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x04))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x05))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x06))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x07))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x08))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x09))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x10))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df_A %>% 
+  ggplot(mapping = aes(y = x11))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+```{r}
+df %>% 
+  ggplot(mapping = aes(y = response_1))+
+  geom_boxplot()+
+  facet_grid(xA~xB)
+
+```
+It can be inferred from the above plots that there are no differences between the input values as well as response_1 based on the discrete groups.
+
+Correlation plot for continous inputs
+
+```{r, correlation}
+df_A %>%
+  purrr::keep(is.numeric) %>%
+  cor() %>%
+  corrplot::corrplot(type = 'upper', method = 'square')
+
+```
+
+It can be seen that the continuous inputs are not correlated.
+
+```{r}
+df %>% select (response_1, x01,x02,x03,04,x05,x06) %>%
+  cor() %>%
+  corrplot::corrplot(type = 'upper', method = 'square')
+
+```
+It can be seen that response_1 is highly correlated to x01 and x02.
+
+
+```{r}
+df2 <- df %>%
+  mutate(y = ifelse(outcome_2 == 'Fail', 1,0))
+```
+
+Shown below is the visualization of outcome_2 wrt response_1
+
+```{r}
+df2 %>%
+  ggplot(mapping = aes(x = response_1, y = y))+
+  geom_point()+
+  geom_smooth(method = "glm", family = 'binomial', formula = y ~ splines::ns(x,2))
+
+```
+Now visualizing the behavior between Step 2 inputs and outcome_2
+
+```{r}
+df2 %>%
+  ggplot(mapping = aes(x = x07, y = y))+
+  geom_point()+
+  geom_smooth(method = "glm", family = 'binomial', formula = y ~ splines::ns(x,2))
+```
+
+
+```{r}
+df2 %>%
+  ggplot(mapping = aes(x = x08, y = y))+
+  geom_point()+
+  geom_smooth(method = "glm", family = 'binomial', formula = y ~ splines::ns(x,2))
+
+
+```
+
+
+```{r}
+df2 %>%
+  ggplot(mapping = aes(x = x09, y = y))+
+  geom_point()+
+  geom_smooth(method = "glm", family = 'binomial', formula = y ~ splines::ns(x,2))
+
+```
+
+```{r}
+df2 %>%
+  ggplot(mapping = aes(x = x10, y = y))+
+  geom_point()+
+  geom_smooth(method = "glm", family = 'binomial', formula = y ~ splines::ns(x,2))
+
+```
+
+
+```{r}
+df2 %>%
+  ggplot(mapping = aes(x = x11, y = y))+
+  geom_point()+
+  geom_smooth(method = "glm", family = 'binomial', formula = y ~ splines::ns(x,2))
+
+```
+

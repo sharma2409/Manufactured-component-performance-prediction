@@ -1,0 +1,334 @@
+---
+title: "Binary_classification_B"
+author: "Raghav Sharma"
+date: "4/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(caret)
+library(dplyr)
+library(tidymodels)
+```
+
+```{r}
+data_url <- 'https://raw.githubusercontent.com/jyurko/INFSCI_2595_Spring_2021/main/HW/final_project/infsci_2595_s21_final_project_data.csv'
+
+df <- readr::read_csv(data_url, col_names = TRUE)
+
+```
+
+```{r}
+df_bin <- df %>% select(xA, xB, response_1, x07:x11, outcome_2) %>% 
+  mutate(outcome_2 = factor(outcome_2, levels = c("Fail", "Pass")))
+```
+
+```{r}
+set.seed(123)
+
+df_index <- createDataPartition(df_bin$outcome_2, p = 0.7, list = FALSE) #70-30 split
+
+df_train <- df_bin[df_index, ]
+df_test <- df_bin[-df_index, ]
+
+nrow(df_train)
+nrow(df_test)
+```
+
+Splitting successful!
+
+```{r}
+cv <- trainControl(
+  method = "repeatedcv",
+  
+  number = 10, 
+  repeats = 2,
+  
+  classProbs = TRUE
+)
+
+```
+
+Linear Model:
+
+```{r}
+set.seed(123)
+
+linear_model <- train(
+  
+  outcome_2 ~ xA + xB + x07 + x08 + x09 + x10 + x11 + response_1,
+  
+  data = df_train,
+  
+  method = "glm",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+  
+  family = "binomial",
+  
+  metric = "Accuracy"
+)
+
+linear_model
+
+```
+Elastic:
+
+Subcase 1:
+```{r}
+elastic_grid <- expand.grid(alpha = seq(0, 1, by = 0.1),
+                            lambda = seq(0, 1, by = 0.1) )
+
+```
+
+```{r}
+set.seed(123)
+
+elastic_model <- train(
+  
+  outcome_2 ~ (xA + xB + x07 + x08 + x09 + x10 + x11 + response_1)^2,
+  
+  data = df_train,
+  
+  method = "glmnet",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+  
+  family = "binomial",
+  
+  tuneGrid = elastic_grid,
+  
+  metric = "Accuracy"
+)
+
+elastic_model
+
+```
+```{r}
+coef(elastic_model$finalModel, elastic_model$bestTune$lambda)
+```
+The number of coefficients are 53
+
+Subcase 2:
+
+```{r}
+set.seed(123)
+
+elastic_model_2 <- train(
+  
+  outcome_2 ~ (xA + xB + x07 + x08 + x09 + x10 + x11 + response_1)^3,
+  
+  data = df_train,
+  
+  method = "glmnet",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+  
+  family = "binomial",
+  
+  tuneGrid = elastic_grid,
+  
+  metric = "Accuracy"
+)
+
+elastic_model_2
+
+```
+
+```{r}
+coef(elastic_model_2$finalModel, elastic_model_2$bestTune$lambda)
+```
+The number of coefficients for 3-way interaction for all inputs are 151.
+
+Neural Nets:
+
+```{r}
+nnet_grid <- expand.grid(size = c(3, 5, 10, 15),
+                         decay = exp(seq(-6, 3, length.out = 31)))
+```
+
+```{r}
+set.seed(123)
+
+nnet_model <- train(
+  
+  outcome_2 ~ (xA + xB + x07 + x08 + x09 + x10 + x11 + response_1),
+  
+  data = df_train,
+  
+  method = "nnet",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+  
+  family = "binomial",
+  
+  tuneGrid = nnet_grid,
+  
+  metric = "Accuracy"
+)
+
+nnet_model
+
+```
+Random Forests:
+
+```{r}
+set.seed(123)
+
+rf_model <- train(
+  
+  outcome_2 ~ (xA + xB + x07 + x08 + x09 + x10 + x11 + response_1),
+  
+  data = df_train,
+  
+  method = "rf",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+  family = "binomial",
+  
+  tuneGrid = expand.grid(mtry = seq(2, 10, by = 1)),
+  
+  metric = "Accuracy",
+  
+  importance = TRUE
+  
+)
+
+rf_model
+
+```
+
+Gradient Boosted Tree:
+
+```{r}
+set.seed(123)
+
+xgboost_model_0 <- train(
+  
+  outcome_2 ~ (xA + xB + x07 + x08 + x09 + x10 + x11 + response_1),
+  
+  data = df_train,
+  
+  method = "xgbTree",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+  metric = "Accuracy",
+
+  tuneGrid = expand.grid(nrounds = seq(75, 125, 25), 
+                                       max_depth = seq(3,5,1), 
+                                       colsample_bytree = c(0.8, 0.9),
+                                       eta = c(0.4,0.5), 
+                                       gamma = 0,
+                                       min_child_weight = 1,
+                                       subsample = 0.75)
+  
+)
+```
+
+
+K-nearest neighbor:
+
+```{r}
+kknn_grid <- expand.grid(k = seq(2, 25, by = 1))
+
+```
+
+
+```{r}
+set.seed(123)
+
+kknn_model <- train(
+  
+  outcome_2 ~ (xA + xB + x07 + x08 + x09 + x10 + x11 + response_1),
+  
+  data = df_train,
+  
+  method = "knn",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+
+  tuneGrid = kknn_grid,
+  
+  metric = "Accuracy"
+)
+
+kknn_model
+
+```
+
+PLS:
+
+```{r}
+set.seed(123)
+
+pls_model <- train(
+  
+  outcome_2 ~ (xA + xB + x07 + x08 + x09 + x10 + x11 + response_1),
+  
+  data = df_train,
+  
+  method = "pls",
+  
+  trControl = cv,
+  
+  preProcess = c("center", "scale"),
+  
+  tuneLength = 10,
+  
+  metric = "Accuracy",
+  
+  family = "binomial"
+)
+
+pls_model
+
+```
+Results:
+
+```{r}
+my_results <- resamples(list(Linear = linear_model,
+                             Elastic_pair_wise = elastic_model,
+                             Elastic_triple_interaction = elastic_model_2,
+                             Nnet = nnet_model,
+                             Random_forest = rf_model,
+                             XgBoost = xgboost_model_0,
+                             Knn = kknn_model,
+                             PLS = pls_model
+                             ))
+
+dotplot(my_results, metric = "Accuracy")
+
+```
+
+To maximize accuracy, the best model would be the Neural Net. 
+
+```{r}
+nnet_model %>% readr::write_rds("nnet_b_accuracy.rds")
+
+```
+
